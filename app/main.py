@@ -1,44 +1,47 @@
+import os
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List
 
-from . import models, schemas, database
+from app import models, schemas, database
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
 
 models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI(title="Status Check MVP API")
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/", response_class=FileResponse)
 def read_root():
-    return "static/index.html"
+    return os.path.join(STATIC_DIR, "index.html")
+
 
 @app.post("/commitments/", response_model=schemas.CommitmentOut)
 def create_commitment(commitment: schemas.CommitmentCreate, db: Session = Depends(database.get_db)):
     commitment_data = commitment.model_dump(by_alias=False)
     db_commitment = models.Commitment(**commitment_data)
-
+    
     db.add(db_commitment)
     db.commit()
     db.refresh(db_commitment)
-
     return db_commitment
 
 @app.get("/commitments/", response_model=List[schemas.CommitmentOut])
-def read_commitments(skip: int=0, limit: int=100, db: Session = Depends(database.get_db)):
+def read_commitments(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     commitments = db.query(models.Commitment).offset(skip).limit(limit).all()
     return commitments
 
 @app.put("/commitments/{commitment_id}", response_model=schemas.CommitmentOut)
 def update_commitment(commitment_id: int, commitment: schemas.CommitmentCreate, db: Session = Depends(database.get_db)):
-    # Шукаємо запис у базі
     db_commitment = db.query(models.Commitment).filter(models.Commitment.id == commitment_id).first()
     if db_commitment is None:
         raise HTTPException(status_code=404, detail="Commitment not found")
-
+    
     update_data = commitment.model_dump(by_alias=False)
     for key, value in update_data.items():
         setattr(db_commitment, key, value)
