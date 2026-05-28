@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Status Check MVP</title>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f9; }
+        #calendar { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .fc-event { cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <h2 style="text-align: center;">Status Check - Календар Комітментів</h2>
+    <div id='calendar'></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var calendarEl = document.getElementById('calendar');
+
+            var calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek'
+                },
+                // Ця функція забирає дані з нашого FastAPI
+                events: async function(info, successCallback, failureCallback) {
+                    try {
+                        const response = await fetch('/commitments/');
+                        const data = await response.json();
+                        
+                        // Перетворюємо наші дані у формат, який розуміє календар
+                        const calendarEvents = data.map(item => ({
+                            id: item.id,
+                            title: `[${item.status}] ${item.title}`,
+                            start: item.deadline, // Розставляємо по полю deadline
+                            extendedProps: {
+                                project: item.project,
+                                executor: item.executor_name,
+                                description: item.description
+                            }
+                        }));
+                        successCallback(calendarEvents);
+                    } catch (error) {
+                        console.error('Помилка завантаження комітментів:', error);
+                        failureCallback(error);
+                    }
+                },
+                eventClick: function(info) {
+                    // Простий алерт для перегляду деталей при кліку на подію
+                    alert(
+                        `Проєкт: ${info.event.extendedProps.project}\n` +
+                        `Виконавець: ${info.event.extendedProps.executor}\n` +
+                        `Опис: ${info.event.extendedProps.description}`
+                    );
+                }
+            });
+
+            calendar.render();
+        });
+    </script>
+</body>
+</html>

@@ -1,4 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -7,6 +9,12 @@ from . import models, schemas, database
 models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI(title="Status Check MVP API")
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/", response_class=FileResponse)
+def read_root():
+    return "static/index.html"
 
 @app.post("/commitments/", response_model=schemas.CommitmentOut)
 def create_commitment(commitment: schemas.CommitmentCreate, db: Session = Depends(database.get_db)):
