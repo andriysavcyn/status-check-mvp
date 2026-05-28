@@ -6,20 +6,53 @@
     <title>Status Check MVP</title>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f9; }
-        #calendar { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f9; display: flex; gap: 20px; }
+        .sidebar { width: 300px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); height: fit-content; }
+        #calendar { flex-grow: 1; max-width: 900px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
         .fc-event { cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <h2 style="text-align: center;">Status Check - Календар Комітментів</h2>
+    <div class="sidebar">
+        <h3>Новий комітмент</h3>
+        <form id="commitmentForm">
+            <div class="form-group">
+                <label>Назва (Title):</label>
+                <input type="text" id="title" required>
+            </div>
+            <div class="form-group">
+                <label>Проєкт:</label>
+                <input type="text" id="project" required>
+            </div>
+            <div class="form-group">
+                <label>Виконавець (Executor):</label>
+                <input type="text" id="executor" required>
+            </div>
+            <div class="form-group">
+                <label>Дедлайн:</label>
+                <input type="datetime-local" id="deadline" required>
+            </div>
+            <div class="form-group">
+                <label>Опис:</label>
+                <textarea id="description"></textarea>
+            </div>
+            <button type="submit">Додати в календар</button>
+        </form>
+    </div>
+
     <div id='calendar'></div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             var calendarEl = document.getElementById('calendar');
-
+            
+            // Ініціалізація календаря
             var calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'dayGridMonth',
                 headerToolbar: {
@@ -27,40 +60,62 @@
                     center: 'title',
                     right: 'dayGridMonth,timeGridWeek'
                 },
-                // Ця функція забирає дані з нашого FastAPI
                 events: async function(info, successCallback, failureCallback) {
                     try {
                         const response = await fetch('/commitments/');
                         const data = await response.json();
-                        
-                        // Перетворюємо наші дані у формат, який розуміє календар
                         const calendarEvents = data.map(item => ({
                             id: item.id,
                             title: `[${item.status}] ${item.title}`,
-                            start: item.deadline, // Розставляємо по полю deadline
-                            extendedProps: {
-                                project: item.project,
-                                executor: item.executor_name,
-                                description: item.description
-                            }
+                            start: item.deadline,
+                            extendedProps: { project: item.project, executor: item.executor_name, description: item.description }
                         }));
                         successCallback(calendarEvents);
                     } catch (error) {
-                        console.error('Помилка завантаження комітментів:', error);
+                        console.error('Помилка завантаження:', error);
                         failureCallback(error);
                     }
                 },
                 eventClick: function(info) {
-                    // Простий алерт для перегляду деталей при кліку на подію
-                    alert(
-                        `Проєкт: ${info.event.extendedProps.project}\n` +
-                        `Виконавець: ${info.event.extendedProps.executor}\n` +
-                        `Опис: ${info.event.extendedProps.description}`
-                    );
+                    alert(`Проєкт: ${info.event.extendedProps.project}\nВиконавець: ${info.event.extendedProps.executor}\nОпис: ${info.event.extendedProps.description}`);
                 }
             });
-
             calendar.render();
+
+            // Обробка відправки форми
+            document.getElementById('commitmentForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Збираємо дані. Оскільки авторизації ще немає, ставимо заглушки для id авторів
+                const newCommitment = {
+                    title: document.getElementById('title').value,
+                    project: document.getElementById('project').value,
+                    executor_name: document.getElementById('executor').value,
+                    deadline: document.getElementById('deadline').value + ":00.000Z", // Форматуємо для бекенду
+                    description: document.getElementById('description').value,
+                    author_id: 1,  
+                    checker_id: 1
+                };
+
+                try {
+                    const response = await fetch('/commitments/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(newCommitment)
+                    });
+
+                    if (response.ok) {
+                        alert('Комітмент успішно додано!');
+                        this.reset(); // Очищаємо форму
+                        calendar.refetchEvents(); // Оновлюємо календар без перезавантаження сторінки
+                    } else {
+                        const err = await response.json();
+                        alert('Помилка: ' + JSON.stringify(err));
+                    }
+                } catch (error) {
+                    console.error('Помилка відправки:', error);
+                }
+            });
         });
     </script>
 </body>
