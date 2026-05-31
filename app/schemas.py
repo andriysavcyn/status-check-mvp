@@ -9,7 +9,7 @@ class CommitmentBase(BaseModel):
     project: str
     executor_name: str
     deadline: datetime
-    status: StatusEnum = Field(default=StatusEnum.to_check, alias="status")
+    status_: StatusEnum = Field(default=StatusEnum.to_check, alias="status")
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -19,7 +19,7 @@ class CommitmentCreate(CommitmentBase):
 
 class CommitmentOut(CommitmentBase):
     id: int
-    created_at: int
+    created_at: datetime
     author_id: int
     checker_id: int
 
