@@ -3,7 +3,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from app import models, schemas, database
 
@@ -32,8 +32,22 @@ def create_commitment(commitment: schemas.CommitmentCreate, db: Session = Depend
     return db_commitment
 
 @app.get("/commitments/", response_model=List[schemas.CommitmentOut])
-def read_commitments(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
-    commitments = db.query(models.Commitment).offset(skip).limit(limit).all()
+def read_commitments(
+    skip: int = 0, 
+    limit: int = 100, 
+    project: Optional[str] = None,      
+    checker_id: Optional[int] = None,   
+    db: Session = Depends(database.get_db)
+):
+    query = db.query(models.Commitment)
+
+    if project:
+        query = query.filter(models.Commitment.project.ilike(f"%{project}%"))
+
+    if checker_id:
+        query = query.filter(models.Commitment.checker_id == checker_id)
+
+    commitments = query.offset(skip).limit(limit).all()
     return commitments
 
 @app.put("/commitments/{commitment_id}", response_model=schemas.CommitmentOut)

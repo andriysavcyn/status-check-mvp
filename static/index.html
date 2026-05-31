@@ -19,6 +19,21 @@
 </head>
 <body>
 
+    <div style="flex-grow: 1;"> <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); display: flex; gap: 15px; align-items: flex-end;">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Фільтр за проєктом:</label>
+                <input type="text" id="filter-project" placeholder="Назва проєкту">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>ID перевіряючого:</label>
+                <input type="number" id="filter-checker" placeholder="ID (напр. 1)">
+            </div>
+            <button type="button" id="applyFiltersBtn" style="width: auto;">Застосувати фільтри</button>
+        </div>
+
+        <div id='calendar'></div>
+    </div>
+
     <div class="sidebar">
         <h3>Новий комітмент</h3>
         <form id="commitmentForm">
@@ -62,7 +77,16 @@
                 },
                 events: async function(info, successCallback, failureCallback) {
                     try {
-                        const response = await fetch('/commitments/');
+                        // Зчитуємо значення з полів фільтрів
+                        const projectFilter = document.getElementById('filter-project').value;
+                        const checkerFilter = document.getElementById('filter-checker').value;
+                        
+                        // Формуємо URL з параметрами
+                        let url = '/commitments/?';
+                        if (projectFilter) url += `project=${encodeURIComponent(projectFilter)}&`;
+                        if (checkerFilter) url += `checker_id=${encodeURIComponent(checkerFilter)}&`;
+
+                        const response = await fetch(url);
                         const data = await response.json();
                         const calendarEvents = data.map(item => ({
                             id: item.id,
@@ -117,6 +141,9 @@
                 }
             });
         });
+        document.getElementById('applyFiltersBtn').addEventListener('click', function() {
+                calendar.refetchEvents(); // Примушуємо календар перезавантажити події з новими параметрами URL
+            });
     </script>
 </body>
 </html>
