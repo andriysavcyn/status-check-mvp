@@ -1,199 +1,608 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Status Check MVP</title>
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f9; display: flex; gap: 20px; }
-        .sidebar { width: 300px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); height: fit-content; }
-        #calendar { flex-grow: 1; max-width: 900px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 8px; box-sizing: border-box; }
-        button { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { background-color: #0056b3; }
-        .fc-event { cursor: pointer; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Status Check | AI Powered</title>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
 
-    <div style="flex-grow: 1;"> <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); display: flex; gap: 15px; align-items: flex-end;">
-            <div class="form-group" style="margin-bottom: 0;">
-                <label>Фільтр за проєктом:</label>
-                <input type="text" id="filter-project" placeholder="Назва проєкту">
-            </div>
-            <div class="form-group" style="margin-bottom: 0;">
-                <label>ID перевіряючого:</label>
-                <input type="number" id="filter-checker" placeholder="ID (напр. 1)">
-            </div>
-            <button type="button" id="applyFiltersBtn" style="width: auto;">Застосувати фільтри</button>
-        </div>
+<!-- ════════════════ AUTH OVERLAY ════════════════ -->
+<div id="auth-overlay">
+  <div class="auth-box">
+    <div class="auth-logo">STATUS CHECK</div>
+    <div class="auth-sub">AI-powered commitment tracker</div>
 
-        <div id='calendar'></div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">Увійти</button>
+      <button class="auth-tab" id="tab-register" onclick="switchTab('register')">Реєстрація</button>
     </div>
 
-    <div class="sidebar">
-        <h3>Новий комітмент</h3>
+    <div id="auth-error" class="auth-error"></div>
 
-        <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #90caf9;">
-            <h4 style="margin-top: 0;">✨ Розумне додавання (Grok AI)</h4>
-            <textarea id="smart-text" placeholder="Напр: Треба зробити фінансову модель для стартапу до наступного вівторка, відповідальний Андрій" rows="3" style="width: 100%; box-sizing: border-box; padding: 8px;"></textarea>
-            <button type="button" id="smartAddBtn" style="background-color: #28a745; margin-top: 10px;">Згенерувати форму</button>
-        </div>
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-        <form id="commitmentForm">
-            <div class="form-group">
-                <label>Назва (Title):</label>
-                <input type="text" id="title" required>
-            </div>
-            <div class="form-group">
-                <label>Проєкт:</label>
-                <input type="text" id="project" required>
-            </div>
-            <div class="form-group">
-                <label>Виконавець (Executor):</label>
-                <input type="text" id="executor" required>
-            </div>
-            <div class="form-group">
-                <label>Дедлайн:</label>
-                <input type="datetime-local" id="deadline" required>
-            </div>
-            <div class="form-group">
-                <label>Опис:</label>
-                <textarea id="description"></textarea>
-            </div>
-            <button type="submit">Додати в календар</button>
-        </form>
+    <!-- Login form -->
+    <div id="form-login">
+      <div class="form-group">
+        <label>Логін</label>
+        <input type="text" id="login-username" placeholder="andrii" autocomplete="username" />
+      </div>
+      <div class="form-group">
+        <label>Пароль</label>
+        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <button class="btn-primary" id="loginBtn" onclick="doLogin()">Увійти</button>
     </div>
 
-    <div id='calendar'></div>
+    <!-- Register form -->
+    <div id="form-register" style="display:none">
+      <div class="form-group">
+        <label>Логін</label>
+        <input type="text" id="reg-username" placeholder="новий_користувач" autocomplete="username" />
+      </div>
+      <div class="form-group">
+        <label>Пароль</label>
+        <input type="password" id="reg-password" placeholder="••••••••" autocomplete="new-password" />
+      </div>
+      <button class="btn-success" id="registerBtn" onclick="doRegister()">Зареєструватись</button>
+    </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var calendarEl = document.getElementById('calendar');
-            
-            // Ініціалізація календаря
-            var calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth',
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: 'dayGridMonth,timeGridWeek'
-                },
-                events: async function(info, successCallback, failureCallback) {
-                    try {
-                        // Зчитуємо значення з полів фільтрів
-                        const projectFilter = document.getElementById('filter-project').value;
-                        const checkerFilter = document.getElementById('filter-checker').value;
-                        
-                        // Формуємо URL з параметрами
-                        let url = '/commitments/?';
-                        if (projectFilter) url += `project=${encodeURIComponent(projectFilter)}&`;
-                        if (checkerFilter) url += `checker_id=${encodeURIComponent(checkerFilter)}&`;
+    <p style="text-align:center;color:var(--t3);font-size:.78rem;margin-top:20px;">
+      Demo: <code style="color:var(--accent)">andrii / pass123</code>
+    </p>
+  </div>
+</div>
 
-                        const response = await fetch(url);
-                        const data = await response.json();
-                        const calendarEvents = data.map(item => ({
-                            id: item.id,
-                            title: `[${item.status}] ${item.title}`,
-                            start: item.deadline,
-                            extendedProps: { project: item.project, executor: item.executor_name, description: item.description }
-                        }));
-                        successCallback(calendarEvents);
-                    } catch (error) {
-                        console.error('Помилка завантаження:', error);
-                        failureCallback(error);
-                    }
-                },
-                eventClick: function(info) {
-                    alert(`Проєкт: ${info.event.extendedProps.project}\nВиконавець: ${info.event.extendedProps.executor}\nОпис: ${info.event.extendedProps.description}`);
-                }
-            });
-            calendar.render();
+<!-- ════════════════ APP SHELL ════════════════ -->
+<div id="app-shell">
 
-            // Обробка розумного додавання через Grok
-            document.getElementById('smartAddBtn').addEventListener('click', async function() {
-                const text = document.getElementById('smart-text').value;
-                if (!text) return alert("Введіть текст задачі!");
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="topbar-logo">STATUS CHECK</div>
+    <div class="topbar-sep"></div>
+    <div class="topbar-user">
+      <div class="avatar" id="user-avatar">?</div>
+      <span id="user-name" style="color:var(--t1);">—</span>
+      <button class="btn-logout" onclick="doLogout()">Вийти</button>
+    </div>
+  </header>
 
-                const btn = this;
-                btn.innerText = "Генерація...";
-                btn.disabled = true;
+  <div class="main-body">
 
-                try {
-                    const response = await fetch('/parse-text/', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text: text })
-                    });
+    <!-- ── SIDEBAR ── -->
+    <aside class="sidebar">
 
-                    if (response.ok) {
-                        const data = await response.json();
-                        
-                        // Автоматично заповнюємо форму
-                        document.getElementById('title').value = data.title || "";
-                        document.getElementById('project').value = data.project || "";
-                        document.getElementById('executor').value = data.executor_name || "";
-                        
-                        if (data.deadline) {
-                            // Браузер очікує формат YYYY-MM-DDTHH:MM
-                            document.getElementById('deadline').value = data.deadline.slice(0, 16);
-                        }
-                        
-                        alert("✨ Форму заповнено через Grok AI! Перевір дані та натисни синю кнопку 'Додати в календар'.");
-                    } else {
-                        const err = await response.json();
-                        alert("Помилка AI: " + err.detail);
-                    }
-                } catch (error) {
-                    console.error("Помилка:", error);
-                    alert("Помилка з'єднання з бекендом.");
-                } finally {
-                    btn.innerText = "Згенерувати форму";
-                    btn.disabled = false;
-                }
-            });
+      <!-- Smart Add -->
+      <div class="card smart-card">
+        <div class="card-title">✨ Розумне додавання (AI)</div>
+        <div class="form-group">
+          <textarea id="smart-text" rows="4"
+            placeholder="Опишіть задачу текстом…&#10;Напр: Перевірити код до п'ятниці, проєкт Status Check, виконавець Андрій"></textarea>
+        </div>
+        <button class="btn-success" id="smartAddBtn" onclick="doSmartAdd()">
+          <span id="smart-btn-inner">✦ Згенерувати форму</span>
+        </button>
+      </div>
 
-            // Обробка відправки форми
-            document.getElementById('commitmentForm').addEventListener('submit', async function(e) {
-                e.preventDefault();
-                
-                // Збираємо дані. Оскільки авторизації ще немає, ставимо заглушки для id авторів
-                const newCommitment = {
-                    title: document.getElementById('title').value,
-                    project: document.getElementById('project').value,
-                    executor_name: document.getElementById('executor').value,
-                    deadline: document.getElementById('deadline').value + ":00.000Z", // Форматуємо для бекенду
-                    description: document.getElementById('description').value,
-                    author_id: 1,  
-                    checker_id: 1
-                };
+      <!-- Manual form -->
+      <div class="card">
+        <div class="card-title">Новий комітмент</div>
+        <div class="form-group">
+          <label>Назва</label>
+          <input type="text" id="title" placeholder="Назва задачі" required />
+        </div>
+        <div class="form-group">
+          <label>Проєкт</label>
+          <input type="text" id="project" placeholder="General" required />
+        </div>
+        <div class="form-group">
+          <label>Виконавець</label>
+          <input type="text" id="executor" placeholder="Ім'я виконавця" required />
+        </div>
+        <div class="form-group">
+          <label>Дедлайн</label>
+          <input type="datetime-local" id="deadline" required />
+        </div>
+        <div class="form-group">
+          <label>Перевіряючий</label>
+          <select id="form-checker">
+            <option value="">Завантаження…</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Опис <span style="color:var(--t3)">(опціонально)</span></label>
+          <textarea id="description" rows="3" placeholder="Додаткові деталі…"></textarea>
+        </div>
+        <button class="btn-primary" id="addBtn" onclick="doAddCommitment()">
+          <span id="add-btn-inner">Додати в календар</span>
+        </button>
+      </div>
 
-                try {
-                    const response = await fetch('/commitments/', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(newCommitment)
-                    });
+    </aside>
 
-                    if (response.ok) {
-                        alert('Комітмент успішно додано!');
-                        this.reset(); // Очищаємо форму
-                        calendar.refetchEvents(); // Оновлюємо календар без перезавантаження сторінки
-                    } else {
-                        const err = await response.json();
-                        alert('Помилка: ' + JSON.stringify(err));
-                    }
-                } catch (error) {
-                    console.error('Помилка відправки:', error);
-                }
-            });
-        });
-        document.getElementById('applyFiltersBtn').addEventListener('click', function() {
-                calendar.refetchEvents(); // Примушуємо календар перезавантажити події з новими параметрами URL
-            });
-    </script>
+    <!-- ── MAIN CONTENT ── -->
+    <main class="content">
+
+      <!-- Filters -->
+      <div class="filters-bar">
+        <div class="form-group">
+          <label>Проєкт</label>
+          <input type="text" id="filter-project" placeholder="Фільтр за проєктом…" />
+        </div>
+        <div class="form-group">
+          <label>Перевіряючий</label>
+          <select id="filter-checker">
+            <option value="">Всі</option>
+          </select>
+        </div>
+        <button class="btn-apply" onclick="applyFilters()">Застосувати</button>
+      </div>
+
+      <!-- Calendar -->
+      <div class="calendar-wrap">
+        <div id="calendar"></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ════════════════ EDIT MODAL ════════════════ -->
+<div class="modal-overlay" id="eventModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-title-display">Комітмент</div>
+        <div style="margin-top:6px">
+          <span class="modal-status-badge" id="modal-status-badge">
+            <span class="status-dot" id="modal-status-dot"></span>
+            <span id="modal-status-label"></span>
+          </span>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+
+    <input type="hidden" id="modal-event-id" />
+
+    <div class="form-group">
+      <label>Назва</label>
+      <input type="text" id="modal-title" />
+    </div>
+    <div class="form-group">
+      <label>Проєкт</label>
+      <input type="text" id="modal-project" />
+    </div>
+    <div class="form-group">
+      <label>Виконавець</label>
+      <input type="text" id="modal-executor" />
+    </div>
+    <div class="form-group">
+      <label>Дедлайн</label>
+      <input type="datetime-local" id="modal-deadline" />
+    </div>
+    <div class="form-group">
+      <label>Статус</label>
+      <select id="modal-status" onchange="updateModalBadge(this.value)">
+        <option value="to check">to check</option>
+        <option value="expired">expired</option>
+        <option value="done">done</option>
+        <option value="not actual">not actual</option>
+        <option value="ideas backlog">ideas backlog</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Опис</label>
+      <textarea id="modal-description" rows="3"></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-primary" id="modal-save-btn" onclick="doSaveModal()">Зберегти</button>
+      <button class="btn-danger"  id="modal-delete-btn" onclick="doDeleteModal()">Видалити</button>
+      <button class="btn-secondary" onclick="closeModal()">Скасувати</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- ════════════════ SCRIPT ════════════════ -->
+<script>
+'use strict';
+
+// ─── State ───────────────────────────────────────
+let TOKEN = localStorage.getItem('sc_token') || '';
+let CURRENT_USER = null;
+let USERS = [];
+window.calendar = null;
+
+const STATUS_COLORS = {
+  'to check':      '#4A90E2',
+  'expired':       '#E74C3C',
+  'done':          '#2ECC71',
+  'not actual':    '#95A5A6',
+  'ideas backlog': '#9B59B6',
+};
+const STATUS_ICONS = {
+  'to check':'🔵','expired':'🔴','done':'🟢','not actual':'⚫','ideas backlog':'🟣'
+};
+
+// ─── Utils ───────────────────────────────────────
+function authHeaders() {
+  return { 'Content-Type':'application/json', 'Authorization':'Bearer '+TOKEN };
+}
+
+function toast(msg, type='info') {
+  const icons = { success:'✓', error:'✕', info:'ℹ' };
+  const c = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = 'toast '+type;
+  el.innerHTML = `<span class="toast-icon">${icons[type]||'ℹ'}</span><span class="toast-msg">${msg}</span>`;
+  c.appendChild(el);
+  setTimeout(()=>{ el.classList.add('out'); setTimeout(()=>el.remove(),350); }, 3400);
+}
+
+// ─── Auth tab switch ──────────────────────────────
+function switchTab(tab) {
+  document.getElementById('form-login').style.display   = tab==='login'?'':'none';
+  document.getElementById('form-register').style.display= tab==='register'?'':'none';
+  document.getElementById('tab-login').classList.toggle('active',  tab==='login');
+  document.getElementById('tab-register').classList.toggle('active',tab==='register');
+  setAuthError('');
+}
+
+function setAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  if (Array.isArray(msg)) {
+    el.textContent = msg.map(err => err.msg).join(" та ");
+  } else {
+    el.textContent = msg;
+  }
+  el.classList.toggle('visible', !!msg && msg.length > 0);
+}
+
+// ─── Login ───────────────────────────────────────
+async function doLogin() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!username || !password) { setAuthError('Введіть логін та пароль'); return; }
+
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.textContent = 'Вхід…';
+  try {
+    const r = await fetch('/auth/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username, password})
+    });
+    const d = await r.json();
+    if (!r.ok) { setAuthError(d.detail || 'Помилка входу'); return; }
+    TOKEN = d.access_token;
+    localStorage.setItem('sc_token', TOKEN);
+    CURRENT_USER = d.user;
+    showApp();
+  } catch { setAuthError('Помилка з\'єднання з сервером'); }
+  finally { btn.disabled=false; btn.textContent='Увійти'; }
+}
+
+async function doRegister() {
+  const username = document.getElementById('reg-username').value.trim();
+  const password = document.getElementById('reg-password').value;
+  if (!username || !password) { setAuthError('Заповніть усі поля'); return; }
+
+  const btn = document.getElementById('registerBtn');
+  btn.disabled=true; btn.textContent='Реєстрація…';
+  try {
+    const r = await fetch('/auth/register', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username, password})
+    });
+    const d = await r.json();
+    if (!r.ok) { setAuthError(d.detail || 'Помилка реєстрації'); return; }
+    toast('Акаунт створено! Тепер увійдіть.', 'success');
+    switchTab('login');
+    document.getElementById('login-username').value = username;
+  } catch { setAuthError('Помилка з\'єднання з сервером'); }
+  finally { btn.disabled=false; btn.textContent='Зареєструватись'; }
+}
+
+function doLogout() {
+  TOKEN=''; CURRENT_USER=null;
+  localStorage.removeItem('sc_token');
+  document.getElementById('app-shell').classList.remove('visible');
+  document.getElementById('auth-overlay').classList.remove('hidden');
+}
+
+// ─── App init ────────────────────────────────────
+async function showApp() {
+  document.getElementById('auth-overlay').classList.add('hidden');
+  document.getElementById('app-shell').classList.add('visible');
+
+  // Show user in topbar
+  if (CURRENT_USER) {
+    document.getElementById('user-name').textContent = CURRENT_USER.username;
+    document.getElementById('user-avatar').textContent = CURRENT_USER.username[0].toUpperCase();
+  }
+
+  await loadUsers();
+  initCalendar();
+}
+
+async function tryAutoLogin() {
+  if (!TOKEN) return;
+  try {
+    const r = await fetch('/auth/me', { headers: authHeaders() });
+    if (!r.ok) { TOKEN=''; localStorage.removeItem('sc_token'); return; }
+    CURRENT_USER = await r.json();
+    showApp();
+  } catch { /* stay on auth screen */ }
+}
+
+async function loadUsers() {
+  try {
+    const r = await fetch('/users/', { headers: authHeaders() });
+    if (!r.ok) return;
+    USERS = await r.json();
+
+    // Populate checker selects
+    ['form-checker','filter-checker'].forEach(id => {
+      const sel = document.getElementById(id);
+      const isFilter = id==='filter-checker';
+      sel.innerHTML = isFilter ? '<option value="">Всі</option>' : '';
+      USERS.forEach(u => {
+        const o = document.createElement('option');
+        o.value = u.id;
+        o.textContent = u.username.charAt(0).toUpperCase()+u.username.slice(1)+' (#'+u.id+')';
+        sel.appendChild(o);
+      });
+    });
+  } catch(e) { console.warn('loadUsers error', e); }
+}
+
+// ─── Calendar ────────────────────────────────────
+function initCalendar() {
+  if (window.calendar) { window.calendar.destroy(); }
+
+  const el = document.getElementById('calendar');
+  window.calendar = new FullCalendar.Calendar(el, {
+    initialView: 'dayGridMonth',
+    height: '100%',
+    headerToolbar: {
+      left:   'prev,next today',
+      center: 'title',
+      right:  'dayGridMonth,timeGridWeek'
+    },
+    events: async function(info, success, fail) {
+      try {
+        let url = '/commitments/?';
+        const proj    = document.getElementById('filter-project').value.trim();
+        const checker = document.getElementById('filter-checker').value;
+        if (proj)    url += `project=${encodeURIComponent(proj)}&`;
+        if (checker) url += `checker_id=${encodeURIComponent(checker)}&`;
+
+        const r = await fetch(url, { headers: authHeaders() });
+        if (!r.ok) { fail('Failed'); return; }
+        const data = await r.json();
+
+        success(data.map(item => ({
+          id: String(item.id),
+          title: `${STATUS_ICONS[item.status]||''} ${item.title}`,
+          start: item.deadline,
+          allDay: true,
+          backgroundColor: STATUS_COLORS[item.status] || '#4A90E2',
+          extendedProps: {
+            rawTitle:    item.title,
+            project:     item.project,
+            executor:    item.executor_name,
+            description: item.description,
+            status:      item.status || 'to check',
+            deadline:    item.deadline,
+            author_id:   item.author_id,
+            checker_id:  item.checker_id,
+          }
+        })));
+      } catch(e) { fail(e); }
+    },
+    eventClick(info) { openEventModal(info.event); }
+  });
+  window.calendar.render();
+}
+
+function applyFilters() {
+  window.calendar && window.calendar.refetchEvents();
+}
+
+// ─── Add commitment ──────────────────────────────
+async function doAddCommitment() {
+  const title    = document.getElementById('title').value.trim();
+  const project  = document.getElementById('project').value.trim();
+  const executor = document.getElementById('executor').value.trim();
+  const deadline = document.getElementById('deadline').value;
+  const checker  = document.getElementById('form-checker').value;
+  const desc     = document.getElementById('description').value;
+
+  if (!title||!project||!executor||!deadline||!checker) {
+    toast('Заповніть усі обов\'язкові поля', 'error'); return;
+  }
+
+  const btn = document.getElementById('addBtn');
+  const inner = document.getElementById('add-btn-inner');
+  btn.disabled=true;
+  inner.innerHTML = '<span class="spinner"></span> Збереження…';
+
+  try {
+    const r = await fetch('/commitments/', {
+      method:'POST', headers: authHeaders(),
+      body: JSON.stringify({
+        title, project,
+        executor_name: executor,
+        deadline: new Date(deadline).toISOString(),
+        description: desc,
+        status: 'to check',
+        author_id: CURRENT_USER.id,
+        checker_id: parseInt(checker),
+      })
+    });
+    if (r.ok) {
+      window.calendar.refetchEvents();
+      document.getElementById('title').value='';
+      document.getElementById('project').value='';
+      document.getElementById('executor').value='';
+      document.getElementById('deadline').value='';
+      document.getElementById('description').value='';
+      toast('Комітмент додано!', 'success');
+    } else {
+      const e = await r.json();
+      const errorMsg = Array.isArray(e.detail) ? e.detail.map(err => err.msg).join(", ") : e.detail;
+      toast('Помилка: ' + errorMsg, 'error');
+    }
+  } catch { toast('Помилка з\'єднання', 'error'); }
+  finally { btn.disabled=false; inner.textContent='Додати в календар'; }
+}
+
+// ─── Smart Add (AI) ──────────────────────────────
+async function doSmartAdd() {
+  const text = document.getElementById('smart-text').value.trim();
+  if (!text) { toast('Введіть текст задачі', 'error'); return; }
+
+  const btn   = document.getElementById('smartAddBtn');
+  const inner = document.getElementById('smart-btn-inner');
+  btn.disabled=true;
+  inner.innerHTML = '<span class="spinner"></span> Генерація…';
+
+  try {
+    const r = await fetch('/parse-text/', {
+      method:'POST', headers: authHeaders(),
+      body: JSON.stringify({ text })
+    });
+    if (r.ok) {
+      const d = await r.json();
+      if (d.title)         document.getElementById('title').value    = d.title;
+      if (d.project)       document.getElementById('project').value  = d.project;
+      if (d.executor_name) document.getElementById('executor').value = d.executor_name;
+      if (d.deadline)      document.getElementById('deadline').value = d.deadline.slice(0,16);
+      document.getElementById('smart-text').value='';
+      toast('Форму заповнено! Перевірте та збережіть.', 'info');
+    } else {
+      const e = await r.json();
+      toast('AI помилка: '+(e.detail||'Невідома помилка'), 'error');
+    }
+  } catch { toast('Помилка з\'єднання з бекендом', 'error'); }
+  finally { btn.disabled=false; inner.textContent='✦ Згенерувати форму'; }
+}
+
+// ─── Modal ───────────────────────────────────────
+function openEventModal(event) {
+  const p = event.extendedProps;
+  document.getElementById('modal-title-display').textContent = p.rawTitle || event.title;
+  document.getElementById('modal-event-id').value = event.id;
+  document.getElementById('modal-title').value    = p.rawTitle || '';
+  document.getElementById('modal-project').value  = p.project  || '';
+  document.getElementById('modal-executor').value = p.executor || '';
+  document.getElementById('modal-description').value = p.description || '';
+
+  const status = p.status || 'to check';
+  document.getElementById('modal-status').value = status;
+  updateModalBadge(status);
+
+  if (p.deadline) {
+    const dt = new Date(p.deadline);
+    document.getElementById('modal-deadline').value =
+      new Date(dt.getTime() - dt.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  }
+  document.getElementById('eventModal').classList.add('active');
+}
+
+// Повністю виправлена тавтологія кольорів!
+function updateModalBadge(status) {
+  const color = STATUS_COLORS[status] || '#8a9bbf';
+  const dot   = document.getElementById('modal-status-dot');
+  const label = document.getElementById('modal-status-label');
+  const badge = document.getElementById('modal-status-badge');
+  
+  dot.style.background   = color;
+  badge.style.background = color + '20'; // Hex opacity (наприклад #4A90E220)
+  badge.style.color      = color;
+  badge.style.border     = `1px solid ${color}44`;
+  label.textContent      = status;
+}
+
+function closeModal() {
+  document.getElementById('eventModal').classList.remove('active');
+}
+
+document.getElementById('eventModal').addEventListener('click', function(e) {
+  if (e.target===this) closeModal();
+});
+
+async function doSaveModal() {
+  const id  = document.getElementById('modal-event-id').value;
+  const btn = document.getElementById('modal-save-btn');
+  btn.disabled=true; btn.textContent='Збереження…';
+
+  const payload = {
+    title:         document.getElementById('modal-title').value,
+    project:       document.getElementById('modal-project').value,
+    executor_name: document.getElementById('modal-executor').value,
+    deadline:      new Date(document.getElementById('modal-deadline').value).toISOString(),
+    description:   document.getElementById('modal-description').value,
+    status:        document.getElementById('modal-status').value,
+    author_id:     CURRENT_USER.id,
+    checker_id:    CURRENT_USER.id,
+  };
+
+  try {
+    const r = await fetch('/commitments/'+id, {
+      method:'PUT', headers: authHeaders(),
+      body: JSON.stringify(payload)
+    });
+    if (r.ok) {
+      closeModal();
+      window.calendar.refetchEvents();
+      toast('Збережено!', 'success');
+    } else {
+      const e = await r.json();
+      // Виправлена тавтологія для вікна редагування:
+      const errorMsg = Array.isArray(e.detail) ? e.detail.map(err => err.msg).join(", ") : e.detail;
+      toast('Помилка: ' + errorMsg, 'error');
+    }
+  } catch { toast('Помилка з\'єднання', 'error'); }
+  finally { btn.disabled=false; btn.textContent='Зберегти'; }
+}
+
+async function doDeleteModal() {
+  const id = document.getElementById('modal-event-id').value;
+  if (!confirm('Видалити цей комітмент?')) return;
+
+  const btn = document.getElementById('modal-delete-btn');
+  btn.disabled=true; btn.textContent='Видалення…';
+
+  try {
+    const r = await fetch('/commitments/'+id, {
+      method:'DELETE', headers: authHeaders()
+    });
+    if (r.ok) {
+      closeModal();
+      window.calendar.refetchEvents();
+      toast('Комітмент видалено', 'info');
+    } else {
+      toast('Помилка видалення', 'error');
+    }
+  } catch { toast('Помилка з\'єднання', 'error'); }
+  finally { btn.disabled=false; btn.textContent='Видалити'; }
+}
+
+// ─── Enter key support ───────────────────────────
+document.getElementById('login-password').addEventListener('keydown', e => {
+  if (e.key==='Enter') doLogin();
+});
+document.getElementById('reg-password').addEventListener('keydown', e => {
+  if (e.key==='Enter') doRegister();
+});
+
+// ─── Boot ────────────────────────────────────────
+tryAutoLogin();
+</script>
 </body>
 </html>
