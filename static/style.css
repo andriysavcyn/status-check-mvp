@@ -95,6 +95,7 @@ body::before {
   letter-spacing: 3px;
   background: linear-gradient(135deg, var(--accent), var(--accent2));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   text-align: center;
   margin-bottom: 4px;
@@ -176,6 +177,7 @@ body::before {
   letter-spacing: 2px;
   background: linear-gradient(135deg, var(--accent), var(--accent2));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   flex-shrink: 0;
 }
@@ -311,6 +313,7 @@ select {
   transition: border-color 0.2s, box-shadow 0.2s;
   outline: none;
   -webkit-appearance: none;
+  appearance: none;
 }
 input:focus,
 textarea:focus,
